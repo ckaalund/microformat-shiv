@@ -11,7 +11,7 @@ var microformats = {};
 
 // The module pattern
 microformats.Parser = function () {
-    this.version = '0.3.1';
+    this.version = '0.3.4';
 	this.rootPrefix = 'h-';
 	this.propertyPrefixes = ['p-', 'dt-', 'u-', 'e-'];
 	this.options = {
@@ -295,135 +295,11 @@ microformats.Parser.prototype = {
 				obj = this.createUfObject(classes.root[x]);
 
 				this.walkChildren(dom, node, obj, classes.root[x], itemRootID);
-				this.impliedRules(dom, node, obj);
 				out.push(obj);
 				x++;
 			}
 		}
 		return out;
-	},
-
-
-	// test for the need to apply the "implied rules" for name, photo and url
-	impliedRules: function(dom, node, uf) {
-		var context = this,
-			value,
-			descendant,
-			newDate;
-
-
-		function getNameAttr(dom, node) {
-			var value = context.domUtils.getAttrValFromTagList(dom, node, ['img'], 'alt');
-			if(!value) {
-				value = context.domUtils.getAttrValFromTagList(dom, node, ['abbr'], 'title');
-			}
-			return value;
-		}
-
-		function getPhotoAttr(dom, node) {
-			var value = context.domUtils.getAttrValFromTagList(dom, node, ['img'], 'src');
-			if(!value) {
-				value = context.domUtils.getAttrValFromTagList(dom, node, ['object'], 'data');
-			}
-			return value;
-		}
-
-
-		if(uf && uf.properties) {
-			
-			// implied name rule
-			/*
-				img.h-x[alt]
-				abbr.h-x[title] 
-				.h-x>img:only-node[alt] 
-				.h-x>abbr:only-node[title] 
-				.h-x>:only-node>img:only-node[alt]
-				.h-x>:only-node>abbr:only-node[title] 
-			*/
-
-			if(!uf.properties.name) {
-				value = getNameAttr(dom, node);
-				if(!value) {
-					descendant = this.domUtils.isSingleDescendant(dom, node, ['img', 'abbr']);
-					if(descendant){
-						value = getNameAttr(dom, descendant);
-					}
-					if(node.children.length > 0){
-						child = this.domUtils.isSingleDescendant(dom, node);
-						if(child){
-							descendant = this.
-
-							domUtils.isSingleDescendant(dom, child, ['img', 'abbr']);
-							if(descendant){
-								value = getNameAttr(dom, descendant);
-							}
-						}
-					}
-				}
-				if(!value) {
-					value = this.text.parse(dom, node, this.options.textFormat);
-				}
-				if(value) {
-					uf.properties.name = [this.utils.trim(value).replace(/[\t\n\r ]+/g, ' ')];
-				}
-			}
-
-
-			// implied photo rule
-			/*
-				img.h-x[src] 
-				object.h-x[data] 
-				.h-x>img[src]:only-of-type
-				.h-x>object[data]:only-of-type 
-				.h-x>:only-child>img[src]:only-of-type 
-				.h-x>:only-child>object[data]:only-of-type 
-			*/
-			if(!uf.properties.photo) {
-				value = getPhotoAttr(dom, node);
-				if(!value) {
-					descendant = this.domUtils.isOnlySingleDescendantOfType(dom, node, ['img', 'object']);
-					if(descendant){
-						value = getPhotoAttr(dom, descendant);
-					}
-
-					// single child that has a single descendant that is a img or object i.e. .h-x>:only-child>img[src]:only-of-type
-					if(node.children.length > 0){
-						child = this.domUtils.isSingleDescendant(dom, node);
-						if(child){
-							descendant = this.domUtils.isOnlySingleDescendantOfType(dom, child, ['img', 'object']);
-							if(descendant){
-								value = getPhotoAttr(dom, descendant);
-							}
-						}
-					}
-				}
-				if(value) {
-					// if we have no protocal separator, turn relative url to absolute ones
-					if(value && value !== '' && value.indexOf(':') === -1) {
-						value = this.domUtils.resolveUrl(dom, value, this.options.baseUrl);
-					}
-					uf.properties.photo = [this.utils.trim(value)];
-				}
-			}
-			// implied url rule
-			if(!uf.properties.url) {
-				value = this.domUtils.getAttrValFromTagList(dom, node, ['a'], 'href');
-				if(value) {
-					uf.properties.url = [this.utils.trim(value)];
-				}
-			}
-
-		}
-
-		// implied date rule - temp fix
-		// only apply to first date and time match
-		if(uf.times.length > 0 && uf.dates.length > 0) {
-			newDate = this.dates.dateTimeUnion(uf.dates[0][1], uf.times[0][1]);
-			uf.properties[this.removePropPrefix(uf.times[0][0])][0] = newDate.toString();
-		}
-		delete uf.times;
-		delete uf.dates;
-
 	},
 
 
@@ -473,7 +349,6 @@ microformats.Parser.prototype = {
 					context.walkChildren(dom, child, rootItem, rootItem.type[x], itemRootID);
 					x++;
 				}
-				context.impliedRules(dom, child, rootItem);
 			}
 
 			// a property which is NOT a microformat and has not been use for a given root element
